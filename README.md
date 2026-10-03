@@ -1,7 +1,12 @@
 # Deep_Entity_Resolution
-A modular, lightweight Deep Learning pipeline for Multi-Field Entity Resolution on structured and semi-structured tabular datasets
+A modular, lightweight Deep Learning pipeline for Multi-Field Entity Resolution on structured and semi-structured tabular datasets. 
 
 An end-to-end, modular Deep Learning pipeline for Multi-Field Entity Resolution on complex tabular/relational datasets (benchmarked on [SPIDER v2](https://figshare.com/articles/dataset/SPIDER_v2_Synthetic_Person_Information_Dataset_for_Entity_Resolution/30472712)).
+
+> Chinnappa, Praveen; Arokiya Dass, Rose Mary; mathur, yash (2025). SPIDER (v2): Synthetic Person Information Dataset for Entity Resolution. figshare. Dataset. https://doi.org/10.6084/m9.figshare.30472712.v2
+
+
+Built as final proyect for my Deep Learning course.
 
 ## Project Overview
 This repository implements a modular, comparative benchmark for deep entity resolution. The pipeline standardizes candidate pair generation, multi-field feature extraction, neural match classification, and global graph clustering into four interchangeable modules.
@@ -40,6 +45,3 @@ This repository implements a modular, comparative benchmark for deep entity reso
 ├── requirements.txt
 └── README.md
 ```
-
-
-Chinnappa, Praveen; Arokiya Dass, Rose Mary; mathur, yash (2025). SPIDER (v2): Synthetic Person Information Dataset for Entity Resolution. figshare. Dataset. https://doi.org/10.6084/m9.figshare.30472712.v2
