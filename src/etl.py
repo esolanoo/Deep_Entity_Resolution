@@ -3,19 +3,16 @@ from funcs import set_env, get_project_root
 
 set_env()
 
-def get_data(processed=True) -> pd.DataFrame:
+def get_data():
     """Load the dataset and optionally preprocess it."""
     path = get_project_root() + r"\data\raw\spider_dataset_v2_6_20251027_022215.csv"
     df = pd.read_csv(path, dtype={'postal_code': str})
-    
-    if processed:
-        df = preprocess_records(df)
-    
-    return df
+    return preprocess_records(df)
 
-def preprocess_records(df: pd.DataFrame) -> pd.DataFrame:
+def preprocess_records(df: pd.DataFrame):
     """Clean and normalize string columns for blocking keys and hashing."""
     df_clean = df.copy()
+    df_clean.set_index('record_id', inplace=True, drop=True)
     
     # Ensure postal code and phone are zero-padded strings
     df_clean['postal_code'] = df_clean['postal_code'].astype(str).str.zfill(5)
@@ -25,7 +22,7 @@ def preprocess_records(df: pd.DataFrame) -> pd.DataFrame:
     # Create standardized lower-case combined representations
     df_clean['first_name'] = df_clean['first_name'].astype(str).str.lower().str.strip()
     df_clean['last_name'] = df_clean['last_name'].astype(str).str.lower().str.strip()
-    df_clean['city'] = df_clean['city'].astype(str).str.lower().str.strip()
+    df_clean['city'] = df_clean['city'].astype(str).str.lower().str.strip().str.replace(' ','')
     
     # DOB normalization to YYYY-MM-DD format
     df_clean['dob'] = pd.to_datetime(df_clean['dob'], errors='coerce').dt.strftime('%Y-%m-%d')
@@ -49,4 +46,8 @@ def preprocess_records(df: pd.DataFrame) -> pd.DataFrame:
     df_clean['email_user'] = df_clean['email_user'].apply(lambda x: x[:x.find('+')] if '+' in x else x)
     df_clean.drop(columns=['email'], inplace=True)
     
-    return df_clean
+    cluster_columns = ['is_duplicate', 'is_duplicate_of', 'rule_id', 'rule_category', 'cluster_id']
+    cluster_data = df_clean[cluster_columns]
+    df_clean.drop(columns=cluster_columns, inplace=True)
+    
+    return df_clean, cluster_data
