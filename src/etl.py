@@ -41,12 +41,12 @@ def preprocess_records(df: pd.DataFrame):
     
     # Email cleaning
     df_clean[['email_user', 'email_domain']] = df_clean['email'].str.split('@', expand=True, n=1).astype(str)
-    df_clean['email_domain'] = df_clean['email_domain'].str[:-4]
+    df_clean['email_domain'] = df_clean['email_domain'].str.split(".").str[0]
     df_clean['email_user'] = df_clean['email_user'].str.lower().str.strip().str.replace('.','')
     df_clean['email_user'] = df_clean['email_user'].apply(lambda x: x[:x.find('+')] if '+' in x else x)
     df_clean.drop(columns=['email'], inplace=True)
     
-    cluster_columns = ['is_duplicate', 'is_duplicate_of', 'rule_id', 'rule_category', 'cluster_id']
+    cluster_columns = ['is_duplicate', 'cluster_id', 'is_duplicate_of', 'rule_id', 'rule_category']
     cluster_data = df_clean[cluster_columns]
     df_clean.drop(columns=cluster_columns, inplace=True)
     

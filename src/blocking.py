@@ -28,8 +28,10 @@ Pairs: C_total, Candidate Pairs: 378655, Recall: 100.00, Reduction Ratio: 99.969
 """
 
 import pandas as pd
+import numpy as np
 from itertools import combinations
 from datasketch import MinHash, MinHashLSH
+from sklearn.model_selection import train_test_split
 import os
 from funcs import set_env, get_project_root
 from etl import get_data
@@ -139,7 +141,7 @@ def lsh_blocking(df: pd.DataFrame, num_perm: int = 128, bands: int = 32, rows: i
         neighbors = lsh.query(m)
         for n in neighbors:
             if rec_id != n:
-                pair = tuple(sorted((rec_id, n)))
+                pair = tuple(sorted((rec_id, n))) # type: ignore
                 pairs.add(pair)
         
     return pairs
@@ -218,3 +220,32 @@ def generate_candidates(eval=False) -> pd.DataFrame:
 
     C_total = pd.DataFrame(data=C_total, columns=["record_id_1", "record_id_2"])
     return C_total
+
+
+def train_test_sets():
+    data, cluster_data = get_data()
+    candidate_pairs = generate_candidates() 
+
+    pairs = candidate_pairs.copy()
+    records = cluster_data.copy()
+    cluster_of = records["cluster_id"]
+        
+    pairs["cluster_1"] = pairs["record_id_1"].map(cluster_of)
+    pairs["cluster_2"] = pairs["record_id_2"].map(cluster_of)
+
+    pairs["label"] = (
+        pairs["cluster_1"] == pairs["cluster_2"]
+    ).astype(np.int64)
+    
+    pairs.drop(columns=['cluster_1', 'cluster_2'], inplace=True)
+
+    true_pairs = pairs[pairs['label']==1]
+    false_pairs = pairs[pairs['label']==0]
+
+    true_train, true_test = train_test_split(true_pairs, train_size=0.8)
+    false_train, false_test = train_test_split(false_pairs, train_size=0.8)
+
+    train_pairs = pd.concat([true_train, false_train])
+    test_pairs = pd.concat([true_test, false_test])
+    
+    return data, train_pairs, test_pairs
