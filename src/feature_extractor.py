@@ -26,7 +26,7 @@ import torch
 import time
 import string
 from sklearn.metrics import precision_score, recall_score, f1_score
-from funcs import set_env, get_project_root, get_device
+from funcs import get_device
 from blocking import train_test_sets
 
 
@@ -163,20 +163,21 @@ class MLPMatcher(nn.Module):
                   # nn.Sigmoid()
             )
             
-      def forward(self, e_A, e_B):
+      def forward(self, embeddings_A, embeddings_B):
             field_comparisons = []
-            for field in e_A.keys():
-                  e_A = e_A[field]
-                  e_B = e_B[field]
-                  diff = torch.abs(e_A - e_B)
-                  prod = e_A * e_B
-                  field_vector = torch.cat([e_A, e_B, diff, prod],dim=1)
+            for field in embeddings_A.keys():
+                  embedding_A = embeddings_A[field]
+                  embedding_B = embeddings_B[field]
+                  diff = torch.abs(embedding_A - embedding_B)
+                  prod = embedding_A * embedding_B
+                  field_vector = torch.cat(
+                        [embedding_A, embedding_B, diff, prod ],
+                        dim=1
+                  )
                   field_comparisons.append(field_vector)
 
-            # Concatenate all field comparisons
             pair_vector = torch.cat(field_comparisons, dim=1)
             logits = self.classifier(pair_vector)
-            
             return logits.squeeze(-1)
 
 
@@ -200,19 +201,21 @@ class EntityMatcher(nn.Module):
                   hidden_dim = 28
             )
 
-      def forward(self, features_A, features_B):
-            e_A = {}
+      def forward(self, features_A, features_B, return_embeddings=False):
+            embeddings_A = {}
             embeddings_B = {}
 
             for field in self.fields:
-                  e_A[field] = self.encoders[field](features_A[field])
+                  embeddings_A[field] = self.encoders[field](features_A[field])
                   embeddings_B[field] = self.encoders[field](features_B[field])
-            match_prob = self.matcher(e_A,embeddings_B)
-
+            match_prob = self.matcher(embeddings_A,embeddings_B)
+            if return_embeddings:
+                  return (match_prob,embeddings_A,embeddings_B)
+            
             return match_prob
       
 
-def evaluate_baseline_performance(model_a, model_b, dataloader):
+def evaluatembeddings_Baseline_performance(model_a, model_b, dataloader):
       device=get_device()
       model_a.eval()
       model_b.eval()
