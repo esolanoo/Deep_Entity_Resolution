@@ -82,15 +82,15 @@ class EntityPairDataset(Dataset):
 
 
 def data():
-      data, train_pairs, test_pairs = train_test_sets() # type: ignore
+      data, train_pairs, test_pairs, val_pairs = train_test_sets()
+      data = data.set_index('record_id', drop=True)
       fields = data.columns.to_list()
-      
       train_dataset = EntityPairDataset(
             data=data,
             pairs=train_pairs,
             tokenizer=char_tokenizer,
             fields=fields,
-            max_len=50
+            max_len=23
       )
 
       test_dataset = EntityPairDataset(
@@ -98,9 +98,17 @@ def data():
             pairs=test_pairs,
             tokenizer=char_tokenizer,
             fields=fields,
-            max_len=50
+            max_len=23
       )
 
+      val_dataset = EntityPairDataset(
+            data=data,
+            pairs=val_pairs,
+            tokenizer=char_tokenizer,
+            fields=fields,
+            max_len=23
+      )
+      
       train_loader = DataLoader(
             train_dataset,
             batch_size=128,
@@ -112,8 +120,14 @@ def data():
             batch_size=128,
             shuffle=False
       )
+
+      val_loader = DataLoader(
+            val_dataset,
+            batch_size=128,
+            shuffle=False
+      )
       
-      return train_dataset, test_dataset, train_loader, test_loader
+      return train_dataset, test_dataset, val_dataset, train_loader, test_loader, val_loader
 
 class CharCNN(nn.Module):
       def __init__(self, vocab_size=vocab_size, embed_dim=32, num_filters=64, output_dim=128):
@@ -145,7 +159,7 @@ class CharCNN(nn.Module):
 
 
 class MLPMatcher(nn.Module):
-      def __init__(self, embed_dim=128, num_fields=4, hidden_dim=128):
+      def __init__(self, embed_dim=128, num_fields=12, hidden_dim=128):
             super().__init__()
             # Input size is 4 * embed_dim due to concat(eA, eB, |eA - eB|, eA * eB)
             input_dim = embed_dim * 4 * num_fields
@@ -182,7 +196,7 @@ class MLPMatcher(nn.Module):
 
 
 class EntityMatcher(nn.Module):
-      def __init__(self, vocab_size, fields, embedding_dim=128):
+      def __init__(self, vocab_size=vocab_size, fields=[], embedding_dim=128):
             super().__init__()
             self.fields = fields
 
@@ -255,3 +269,4 @@ def evaluatembeddings_Baseline_performance(model_a, model_b, dataloader):
       print(f"Inference Latency  : {ms_per_pair:.4f} ms/pair ({ms_per_pair * 1000:.2f} ms / 1k pairs)")
       
       return {"precision": precision, "recall": recall, "f1": f1, "ms_per_pair": ms_per_pair}
+

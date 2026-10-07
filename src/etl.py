@@ -12,7 +12,6 @@ def get_data():
 def preprocess_records(df: pd.DataFrame):
     """Clean and normalize string columns for blocking keys and hashing."""
     df_clean = df.copy()
-    df_clean.set_index('record_id', inplace=True, drop=True)
     
     # Ensure postal code and phone are zero-padded strings
     df_clean['postal_code'] = df_clean['postal_code'].astype(str).str.zfill(5)
@@ -47,7 +46,7 @@ def preprocess_records(df: pd.DataFrame):
     df_clean.drop(columns=['email'], inplace=True)
     
     cluster_columns = ['is_duplicate', 'cluster_id', 'is_duplicate_of', 'rule_id', 'rule_category']
-    cluster_data = df_clean[cluster_columns]
+    cluster_data = df_clean[cluster_columns+['record_id']]
     df_clean.drop(columns=cluster_columns, inplace=True)
     
     return df_clean, cluster_data

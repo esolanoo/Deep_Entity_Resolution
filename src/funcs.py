@@ -26,5 +26,8 @@ def get_device():
     return torch.device("cpu") if not torch.cuda.is_available() else torch.device("cuda:0")
 
 def get_project_root():
-    return os.path.abspath(os.getcwd())[:-3]
-    # return r"C:\Users\Eduardo\Documents\MIACD\git\MIACD\DeepLearning\Deep_Entity_Resolution"
+    path = os.path.abspath(os.getcwd())
+    if "\\src" in path:
+        path = path[:-3]
+    return path
+    
