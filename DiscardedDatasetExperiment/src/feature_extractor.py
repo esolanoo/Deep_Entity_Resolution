@@ -1,4 +1,6 @@
 """
+
+
 Candidate Pair (Record A, Record B)
                        │
        ┌───────────────┴───────────────┐

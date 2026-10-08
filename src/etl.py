@@ -1,52 +1,52 @@
+import recordlinkage.datasets
 import pandas as pd
-from funcs import set_env, get_project_root
+from funcs import set_env
 
 set_env()
 
-def get_data():
-    """Load the dataset and optionally preprocess it."""
-    path = get_project_root() + r"\data\raw\spider_dataset_v2_6_20251027_022215.csv"
-    df = pd.read_csv(path, dtype={'postal_code': str})
-    return preprocess_records(df)
 
-def preprocess_records(df: pd.DataFrame):
-    """Clean and normalize string columns for blocking keys and hashing."""
-    df_clean = df.copy()
+def get_entity_map(records: pd.DataFrame, true_pairs: pd.MultiIndex):
+    data = records.copy()
+    parent = {rec_id: rec_id for rec_id in data.index}
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    def union(a, b):
+        root_a = find(a)
+        root_b = find(b)
+
+        if root_a != root_b:
+            parent[root_b] = root_a
+
+    for rec_a, rec_b in true_pairs:
+        union(rec_a, rec_b)
+
+    roots = {rec_id: find(rec_id) for rec_id in data.index} # Compress paths
+    # Convert arbitrary roots into clean integer entity IDs
+    root_to_entity = {root: entity_idx for entity_idx, root in enumerate(sorted(set(roots.values())))}
+    entity_map = pd.Series({rec_id: root_to_entity[root] for rec_id, root in roots.items()}, name="entity_id")
+
+    return entity_map
+
+
+def get_data():    
+    data = recordlinkage.datasets.load_febrl2(return_links=True)
+    records = data[0]
+    true_pairs = data[1]
+    records = records.drop(columns='soc_sec_id') # 'soc_sec_id' causes almost always an exact-match for true pairs (89 variations out of 4000 entities)
+    num_fields = ['street_number', 'postcode', 'date_of_birth']
+
+    for field in records.columns:
+        records[field] = records[field].astype(str) # str casting for blockers
+        records[field] = records[field].str.lower().str.strip()
+        if field in num_fields:
+            records[field] = records[field].str.zfill(int(max(records[field].str.len()))) # Homogenize lengths
+    records.fillna("_MISSING_", inplace=True) # Several missing values but I don't want to drop them, rather make them explicitly show they are missing
     
-    # Ensure postal code and phone are zero-padded strings
-    df_clean['postal_code'] = df_clean['postal_code'].astype(str).str.zfill(5)
-    df_clean['phone'] = df_clean['phone'].astype(str).str.replace(r'\D', '', regex=True)  # Remove non-digit characters
-    df_clean['phone'] = df_clean['phone'].str.zfill(10)
+    entity_map = get_entity_map(records, true_pairs) # type: ignore
     
-    # Create standardized lower-case combined representations
-    df_clean['first_name'] = df_clean['first_name'].astype(str).str.lower().str.strip()
-    df_clean['last_name'] = df_clean['last_name'].astype(str).str.lower().str.strip()
-    df_clean['city'] = df_clean['city'].astype(str).str.lower().str.strip().str.replace(' ','')
-    
-    # DOB normalization to YYYY-MM-DD format
-    df_clean['dob'] = pd.to_datetime(df_clean['dob'], errors='coerce').dt.strftime('%Y-%m-%d')
-    df_clean['dob'] = df_clean['dob'].astype(str).str.replace(r'\D', '', regex=True) 
-    
-    # Split adress into components for more granular blocking
-    df_clean[['street_number', 'street_name']] = df_clean['street'].str.split(' ', expand=True, n=1)
-    df_clean['street_number'] = df_clean['street_number'].astype(str).str.zfill(5)
-    df_clean['apt_number'] = df_clean['street_name'].str.replace(r'\D', '', regex=True).str.zfill(3)
-    df_clean['street_name'] = df_clean['street_name'].str.replace(' ','').str.lower().str.strip().str.replace('apt.','')
-    df_clean['street_name'] = df_clean['street_name'].str.replace(r'\d', '', regex=True) # remove digits
-    df_clean.drop(columns=['street'], inplace=True)
-    
-    # State cleaning
-    df_clean['state'] = df_clean['state'].astype(str).str.lower().str.strip()
-    
-    # Email cleaning
-    df_clean[['email_user', 'email_domain']] = df_clean['email'].str.split('@', expand=True, n=1).astype(str)
-    df_clean['email_domain'] = df_clean['email_domain'].str.split(".").str[0]
-    df_clean['email_user'] = df_clean['email_user'].str.lower().str.strip().str.replace('.','')
-    df_clean['email_user'] = df_clean['email_user'].apply(lambda x: x[:x.find('+')] if '+' in x else x)
-    df_clean.drop(columns=['email'], inplace=True)
-    
-    cluster_columns = ['is_duplicate', 'cluster_id', 'is_duplicate_of', 'rule_id', 'rule_category']
-    cluster_data = df_clean[cluster_columns+['record_id']]
-    df_clean.drop(columns=cluster_columns, inplace=True)
-    
-    return df_clean, cluster_data
+    return records, true_pairs, entity_map
